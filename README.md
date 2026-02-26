@@ -28,7 +28,7 @@ Realtime детекція джойстика на **Jetson Nano 4GB** з USB-к�
 
 
 
-![Labels preview]("H:\work\jetson-yolo\runs\detect\joystick_320_neg_v4\train_batch0.jpg")
+![Labels preview](runs/detect/joystick_320_neg_v4/train_batch0.jpg)
 
 ## Вимоги
 
