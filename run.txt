@@ -1,0 +1,138 @@
+# Jetson runbook (USB webcam + TensorRT)
+
+# 1) Перевірка, що engine є
+ls -lh /home/kolins/jetson-yolo/artifacts/joystick_fp16.engine
+
+# 2) Швидкий benchmark TensorRT engine
+/usr/src/tensorrt/bin/trtexec \
+  --loadEngine=/home/kolins/jetson-yolo/artifacts/joystick_fp16.engine \
+  --warmUp=1000 --duration=10 --streams=1
+
+# 3) Перевірка камери в Docker (headless)
+sudo docker run --rm -it \
+  --runtime nvidia \
+  --network host \
+  --ipc host \
+  --device=/dev/video0 \
+  --device=/dev/video1 \
+  --group-add video \
+  -v /home/kolins/jetson-yolo:/workspace \
+  -w /workspace \
+  nvcr.io/nvidia/l4t-ml:r32.7.1-py3 \
+  bash -lc "python3 - << 'PY'
+import cv2
+cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+cap.set(cv2.CAP_PROP_FPS, 30)
+ok, frame = cap.read()
+print('camera_open', cap.isOpened(), 'frame_ok', ok, 'shape', None if frame is None else frame.shape)
+cap.release()
+PY"
+
+# 3.1) Якщо frame_ok=False, перевір індекс 1
+sudo docker run --rm -it \
+  --runtime nvidia \
+  --network host \
+  --ipc host \
+  --device=/dev/video0 \
+  --device=/dev/video1 \
+  --group-add video \
+  -v /home/kolins/jetson-yolo:/workspace \
+  -w /workspace \
+  nvcr.io/nvidia/l4t-ml:r32.7.1-py3 \
+  bash -lc "python3 - << 'PY'
+import cv2
+cap = cv2.VideoCapture(1, cv2.CAP_V4L2)
+ok, frame = cap.read()
+print('camera_open', cap.isOpened(), 'frame_ok', ok, 'shape', None if frame is None else frame.shape)
+cap.release()
+PY"
+
+# Примітка: помилки nvargus-daemon для USB-камери можна ігнорувати,
+# якщо camera_open=True і frame_ok=True.
+
+# 4) Лог системних метрик (запускати в окремому терміналі)
+mkdir -p /home/kolins/jetson-yolo/outputs
+tegrastats --interval 1000 | tee /home/kolins/jetson-yolo/outputs/tegrastats.log
+
+# 5) Перезбірка engine (якщо потрібно повторити)
+/usr/src/tensorrt/bin/trtexec \
+  --onnx=/home/kolins/jetson-yolo/artifacts/joystick.onnx \
+  --saveEngine=/home/kolins/jetson-yolo/artifacts/joystick_fp16.engine \
+  --fp16 --workspace=1024 --minTiming=1 --avgTiming=1
+
+# 6) Realtime-тест моделі (довгий прогін 60с, без камери)
+# Використовує готовий TensorRT engine та показує стабільний FPS/latency.
+sudo docker run --rm -it \
+  --runtime nvidia \
+  -v /home/kolins/jetson-yolo:/workspace \
+  -w /workspace \
+  nvcr.io/nvidia/l4t-ml:r32.7.1-py3 \
+  /usr/src/tensorrt/bin/trtexec \
+    --loadEngine=artifacts/joystick_fp16.engine \
+    --warmUp=1000 --duration=60 --streams=1 --useCudaGraph
+
+# 7) Realtime-тест З КАМЕРОЮ (headless, 300 кадрів, ONNX)
+# Перевіряє саме зв'язку camera + model inference. Пише підсумковий FPS в консоль.
+sudo docker run --rm -it \
+  --runtime nvidia \
+  --network host \
+  --ipc host \
+  --device=/dev/video0 \
+  --group-add video \
+  -v /home/kolins/jetson-yolo:/workspace \
+  -w /workspace \
+  nvcr.io/nvidia/l4t-ml:r32.7.1-py3 \
+  bash -lc "python3 - << 'PY'
+import time
+import cv2
+from ultralytics import YOLO
+
+model = YOLO('/workspace/artifacts/joystick.onnx', task='detect')
+cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+cap.set(cv2.CAP_PROP_FPS, 30)
+
+if not cap.isOpened():
+    raise RuntimeError('Cannot open /dev/video0')
+
+n = 300
+ok_frames = 0
+t0 = time.time()
+for _ in range(n):
+    ok, frame = cap.read()
+    if not ok:
+        continue
+    ok_frames += 1
+    model.predict(source=frame, imgsz=320, conf=0.6, iou=0.7, verbose=False)
+
+dt = max(time.time() - t0, 1e-6)
+print(f'frames={ok_frames}/{n} total_sec={dt:.2f} fps={ok_frames/dt:.2f}')
+cap.release()
+PY"
+
+# 8) Realtime-тест З КАМЕРОЮ (Python-скрипт TensorRT .engine)
+# Актуальний варіант без ultralytics: міряє FPS/latency та пише JSON-звіт.
+echo 'lrvd12f' | sudo -S docker run --rm --runtime nvidia --network host --ipc host \
+  --device=/dev/video0 --group-add video \
+  -v /home/kolins/jetson-yolo:/workspace -w /workspace \
+  nvcr.io/nvidia/l4t-ml:r32.7.1-py3 \
+  python3 /workspace/scripts/realtime_camera_test.py \
+  --camera 0 --frames 300 --imgsz 320 --conf 0.6 --iou 0.7 \
+  --save-json /workspace/outputs/realtime_test.json
+
+# 9) Live preview (вікно + realtime детекція, натисни Q/Esc для виходу)
+# Запускати з локального робочого столу Jetson (не через SSH без X11).
+xhost +local:root
+echo 'lrvd12f' | sudo -S docker run --rm --runtime nvidia --network host --ipc host \
+  --device=/dev/video0 --group-add video \
+  -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix \
+  -v /home/kolins/jetson-yolo:/workspace -w /workspace \
+  nvcr.io/nvidia/l4t-ml:r32.7.1-py3 \
+  python3 /workspace/scripts/realtime_camera_test.py \
+  --camera 0 --frames 999999 --imgsz 320 --conf 0.6 --iou 0.7 --max-det 10 --show
+
+# 9.1) Те саме однією командою (рекомендовано)
+bash /home/kolins/jetson-yolo/scripts/live_preview.sh

@@ -1,0 +1,19 @@
+# Python virtual environment
+.venv/
+
+# Dataset creation helper scripts (optional local tooling)
+src/scripts/rec_video.py
+src/scripts/extract_frames.py
+src/scripts/label_frames_gdino.py
+
+# Generated artifacts from dataset pipeline
+src/scripts/sessions/
+src/scripts/dataset_images/
+labels/
+preview/
+data/
+runs/
+
+# Python cache
+__pycache__/
+*.pyc
