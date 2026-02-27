@@ -1,3 +1,6 @@
+# Top-level runtime/training dependencies (human-maintained).
+# Exact local environment snapshot is stored in requirements-lock.txt.
+
 numpy
 opencv-python
 Pillow

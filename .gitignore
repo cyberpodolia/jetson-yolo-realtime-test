@@ -3,6 +3,8 @@
 
 # Local helper scripts and raw sessions
 src/scripts/
+scripts/dev/
+ROADMAP.md
 
 # Generated artifacts from dataset pipeline
 src/scripts/sessions/
@@ -10,12 +12,21 @@ src/scripts/dataset_images/
 labels/
 preview/
 data/
+outputs/
+artifacts/*.engine
 runs/*
 !runs/detect/
 runs/detect/*
 !runs/detect/joystick_320_neg_v4/
 !runs/detect/joystick_320_neg_v4/**
+artifacts/*.plan
 
 # Python cache
 __pycache__/
 *.pyc
+
+# Accidental PowerShell redirection artifacts (e.g. ">=1.12.0," creates "=1.12.0,")
+=*,
+
+# Temporary SSH password helper scripts
+*.askpass.cmd
