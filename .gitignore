@@ -5,6 +5,7 @@
 src/scripts/
 scripts/dev/
 ROADMAP.md
+REPORT.md
 
 # Generated artifacts from dataset pipeline
 src/scripts/sessions/
@@ -20,6 +21,8 @@ runs/detect/*
 !runs/detect/joystick_320_neg_v4/
 !runs/detect/joystick_320_neg_v4/**
 artifacts/*.plan
+yolo26n.pt
+yolov8n.pt
 
 # Python cache
 __pycache__/

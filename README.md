@@ -1,18 +1,19 @@
 # Jetson YOLO Realtime (Joystick)
 
-Realtime joystick detection for Jetson Nano 4GB + PS3 Eye camera.
+Realtime joystick detection on Jetson Nano 4GB with a PS3 Eye camera.
 
-Pipeline:
-- YOLOv8n training on PC (`imgsz=320`)
-- ONNX export (`artifacts/joystick.onnx`)
-- TensorRT FP16 engine build on Jetson (`artifacts/joystick_fp16.engine`, git-ignored)
-- Modular runtime app with detector + optional CSRT tracking-by-detection
+## Project Pipeline
 
-## Implemented
+1. Train YOLOv8n on PC (`imgsz=320`).
+2. Export ONNX (`artifacts/joystick.onnx`).
+3. Build TensorRT FP16 engine on Jetson (`artifacts/joystick_fp16.engine`, ignored by git).
+4. Run modular realtime app with detector-only or tracking-by-detection mode.
 
-- Training:
+## Implemented Components
+
+- Training
   - `src/train/train_yolo.py`
-- Modular runtime:
+- Realtime runtime
   - `src/app.py`
   - `src/gst.py`
   - `src/trt_infer.py`
@@ -20,30 +21,45 @@ Pipeline:
   - `src/overlay.py`
   - `src/metrics.py`
   - `src/tracker_csrt.py`
-- Jetson scripts:
+- Jetson scripts
   - `scripts/build_engine.sh`
   - `scripts/tegrastats_log.sh`
   - `scripts/bench.sh`
   - `scripts/live_preview.sh`
   - `scripts/realtime_camera_test.py`
-- Baseline train artifacts:
+- Baseline training run artifacts
   - `runs/detect/joystick_320_neg_v4/`
+
+## Training Snapshots
+
+Training batch sample:
+
+![Train Batch 0](runs/detect/joystick_320_neg_v4/train_batch0.jpg)
+
+Training metrics summary:
+
+![Training Results](runs/detect/joystick_320_neg_v4/results.png)
 
 ## Runtime Modes
 
 Detector only:
+
 ```bash
-python -m src.app --engine artifacts/joystick_fp16.engine --tracker off
+python3 -m src.app --engine artifacts/joystick_fp16.engine --tracker off
 ```
 
-Tracking-by-detection (CSRT):
+Tracking-by-detection:
+
 ```bash
-python -m src.app --engine artifacts/joystick_fp16.engine --tracker csrt --det-interval 3
+python3 -m src.app \
+  --engine artifacts/joystick_fp16.engine \
+  --tracker csrt --det-interval 3 --track-interval 2
 ```
 
-Dry run (no camera/model load):
+Dry run (no camera/model startup):
+
 ```bash
-python -m src.app --dry-run --tracker csrt --det-interval 5
+python3 -m src.app --dry-run --tracker csrt --det-interval 3 --track-interval 2
 ```
 
 ## Quick Start
@@ -72,8 +88,7 @@ yolo export model=runs/detect/joystick_320_neg_v4/weights/best.pt \
   format=onnx opset=12 imgsz=320 simplify=True dynamic=False
 ```
 
-Copy result to:
-- `artifacts/joystick.onnx`
+Copy output to `artifacts/joystick.onnx`.
 
 ### 3) Build TensorRT engine on Jetson
 
@@ -81,13 +96,14 @@ Copy result to:
 bash scripts/build_engine.sh
 ```
 
-### 4) Run benchmark matrix on Jetson (`det_interval=1,3,5`)
+### 4) Benchmark on Jetson (`det_interval=1,3,5`)
 
 ```bash
 bash scripts/bench.sh
 ```
 
 Expected outputs:
+
 - `outputs/tegrastats.log`
 - `outputs/metrics_det1.json`
 - `outputs/metrics_det3.json`
@@ -96,11 +112,11 @@ Expected outputs:
 
 ## Dependency Files
 
-- `requirements.txt`: top-level, human-maintained dependencies.
-- `requirements-lock.txt`: exact local `.venv` snapshot (`pip freeze`), useful for strict reproducibility.
+- `requirements.txt`: curated dependencies.
+- `requirements-lock.txt`: exact local environment snapshot (`pip freeze`).
 
 ## Notes
 
-- `data/`, `outputs/`, `*.engine`, and helper/dev artifacts are git-ignored.
-- Do not commit TensorRT engine binaries; build them on target Jetson.
-- See `run.txt` for command runbook and `REPORT.md` for current measured status.
+- `data/`, `outputs/`, `*.engine`, and helper/dev artifacts are ignored.
+- TensorRT engine binaries should be built on target Jetson, not committed.
+- See `run.txt` for run commands.
