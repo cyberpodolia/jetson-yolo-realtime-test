@@ -1,5 +1,6 @@
 import argparse
 import json
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -40,6 +41,17 @@ def parse_args():
     parser.add_argument("--save-json", type=Path, default=None, help="Optional metrics JSON path.")
     parser.add_argument("--save-video", type=Path, default=None, help="Optional MP4 output path.")
     parser.add_argument(
+        "--video-codec",
+        default=DEFAULTS.video_codec,
+        help="4-char video codec for OpenCV writer (e.g. mp4v, MJPG, XVID).",
+    )
+    parser.add_argument(
+        "--video-skip",
+        type=int,
+        default=DEFAULTS.video_skip,
+        help="Write every Nth frame to output video to reduce encoder overhead.",
+    )
+    parser.add_argument(
         "--overlay-alpha",
         type=float,
         default=0.2,
@@ -65,9 +77,9 @@ def parse_args():
     )
     parser.add_argument(
         "--tracker",
-        choices=("off", "csrt"),
+        choices=("off", "csrt", "sort"),
         default=DEFAULTS.tracker,
-        help="Tracker mode (full tracking pipeline is implemented in step 00030).",
+        help="Tracker mode: off, csrt, or sort.",
     )
     parser.add_argument(
         "--dry-run",
@@ -77,12 +89,19 @@ def parse_args():
     return parser.parse_args()
 
 
-def _make_writer(cv2_module, path, width, height, fps):
+def _normalize_codec(raw_codec):
+    codec = str(raw_codec).strip()
+    if len(codec) != 4:
+        raise ValueError("--video-codec must be exactly 4 characters")
+    return codec
+
+
+def _make_writer(cv2_module, path, width, height, fps, codec):
     """Create optional MP4 writer."""
     if path is None:
         return None
     path.parent.mkdir(parents=True, exist_ok=True)
-    fourcc = cv2_module.VideoWriter_fourcc(*"mp4v")
+    fourcc = cv2_module.VideoWriter_fourcc(*codec)
     writer = cv2_module.VideoWriter(str(path), fourcc, max(fps, 1), (width, height))
     return writer if writer.isOpened() else None
 
@@ -99,15 +118,18 @@ def main():
         raise ValueError("--det-interval must be >= 1")
     if args.track_interval < 1:
         raise ValueError("--track-interval must be >= 1")
+    if args.video_skip < 1:
+        raise ValueError("--video-skip must be >= 1")
     if args.preview_skip < 1:
         raise ValueError("--preview-skip must be >= 1")
     if args.overlay_alpha < 0.0 or args.overlay_alpha > 1.0:
         raise ValueError("--overlay-alpha must be within [0.0, 1.0]")
+    video_codec = _normalize_codec(args.video_codec)
 
     if args.dry_run:
         print(
             "dry_run_ok "
-            "engine={} camera={} imgsz={} det_interval={} track_interval={} tracker={} overlay_alpha={} preview_skip={}".format(
+            "engine={} camera={} imgsz={} det_interval={} track_interval={} tracker={} overlay_alpha={} preview_skip={} video_skip={} video_codec={}".format(
                 engine_path,
                 args.camera,
                 args.imgsz,
@@ -116,6 +138,8 @@ def main():
                 args.tracker,
                 args.overlay_alpha,
                 args.preview_skip,
+                args.video_skip,
+                video_codec,
             )
         )
         return 0
@@ -132,6 +156,7 @@ def main():
     from .overlay import draw_detections, draw_fps, draw_status
     from .postprocess import decode_and_filter
     from .tracker_csrt import CsrtTracker, csrt_available
+    from .tracker_sort import SortTracker, sort_available
     from .trt_infer import TrtConfig, TrtInferencer
 
     inferencer = TrtInferencer(TrtConfig(engine_path=engine_path, input_size=args.imgsz))
@@ -152,7 +177,13 @@ def main():
     if not cap.isOpened():
         raise RuntimeError("Cannot open camera index {}".format(args.camera))
 
-    writer = _make_writer(cv2, save_video_path, args.width, args.height, args.fps)
+    writer = _make_writer(cv2, save_video_path, args.width, args.height, args.fps, video_codec)
+    if save_video_path is not None and writer is None:
+        print(
+            "WARN: cannot open video writer with codec '{}'; disabling --save-video.".format(
+                video_codec
+            )
+        )
     can_show = bool(args.show)
     if can_show:
         try:
@@ -170,17 +201,32 @@ def main():
     tracker_mode = args.tracker
     tracker = None
     if tracker_mode == "csrt":
-        if not csrt_available():
-            tracker_mode = "off"
+        if csrt_available():
+            tracker = CsrtTracker()
+        elif sort_available():
+            tracker_mode = "sort"
+            tracker = SortTracker()
             print(
-                "WARN: CSRT tracker is not available in this OpenCV build; fallback to --tracker off."
+                "WARN: CSRT tracker is not available in this OpenCV build; fallback to --tracker sort."
             )
         else:
-            tracker = CsrtTracker()
+            tracker_mode = "off"
+            print(
+                "WARN: no compatible tracker backend available; fallback to --tracker off."
+            )
+    elif tracker_mode == "sort":
+        if sort_available():
+            tracker = SortTracker()
+        else:
+            tracker_mode = "off"
+            print("WARN: SORT tracker backend is unavailable; fallback to --tracker off.")
+
     if tracker_mode == "off" and args.det_interval != 1:
         print(
-            "WARN: --det-interval is active only with --tracker csrt; running detector each frame."
+            "WARN: --det-interval is active only with tracker enabled; running detector each frame."
         )
+    if tracker_mode == "off" and args.track_interval != 1:
+        print("WARN: --track-interval is active only with tracker enabled.")
 
     metrics = RuntimeMetrics()
     metrics.start()
@@ -188,7 +234,9 @@ def main():
     last_track_detection = None
 
     while metrics.frames < args.frames:
+        t_cap = time.perf_counter()
         ok, frame = cap.read()
+        metrics.add_stage_ms("capture_read", (time.perf_counter() - t_cap) * 1000.0)
         if not ok:
             continue
         frame_id += 1
@@ -198,14 +246,18 @@ def main():
         source = "detect"
 
         need_detect = True
-        if tracker_mode == "csrt" and tracker is not None:
+        if tracker_mode in ("csrt", "sort") and tracker is not None:
             need_detect = (not tracker.is_active) or (frame_id % args.det_interval == 0)
             if not need_detect and tracker.is_active:
                 run_track_update = (frame_id % args.track_interval == 0) or (
                     last_track_detection is None
                 )
                 if run_track_update:
+                    t_track = time.perf_counter()
                     tracked = tracker.update(frame)
+                    metrics.add_stage_ms(
+                        "track_update", (time.perf_counter() - t_track) * 1000.0
+                    )
                     if tracked.ok and tracked.detection is not None:
                         last_track_detection = tracked.detection
                         detections = [tracked.detection]
@@ -220,7 +272,14 @@ def main():
                     need_detect = False
 
         if need_detect:
+            t_infer_total = time.perf_counter()
             raw_output, infer_ms = inferencer.infer(frame)
+            metrics.add_stage_ms(
+                "infer_total", (time.perf_counter() - t_infer_total) * 1000.0
+            )
+            if infer_ms is not None:
+                metrics.add_stage_ms("infer_reported", infer_ms)
+            t_decode = time.perf_counter()
             detections = decode_and_filter(
                 raw_output=raw_output,
                 in_w=in_w,
@@ -231,12 +290,17 @@ def main():
                 iou_thres=args.iou,
                 max_det=args.max_det,
             )
+            metrics.add_stage_ms("decode_nms", (time.perf_counter() - t_decode) * 1000.0)
             source = "detect"
 
-            if tracker_mode == "csrt" and tracker is not None:
+            if tracker_mode in ("csrt", "sort") and tracker is not None:
                 if detections:
                     best_det = max(detections, key=lambda d: d.score)
+                    t_track_init = time.perf_counter()
                     tracker.init_from_detection(frame, best_det)
+                    metrics.add_stage_ms(
+                        "track_init", (time.perf_counter() - t_track_init) * 1000.0
+                    )
                     last_track_detection = best_det
                 elif not tracker.is_active:
                     tracker.reset()
@@ -245,8 +309,10 @@ def main():
         metrics.add_frame(infer_ms=infer_ms, has_detection=bool(detections))
 
         vis = frame
-        render_now = (writer is not None) or (can_show and (frame_id % args.preview_skip == 0))
+        write_now = writer is not None and (frame_id % args.video_skip == 0)
+        render_now = write_now or (can_show and (frame_id % args.preview_skip == 0))
         if render_now:
+            t_render = time.perf_counter()
             vis = frame.copy()
             draw_detections(vis, detections, source=source, alpha=args.overlay_alpha)
             draw_fps(vis, metrics.fps_now())
@@ -260,14 +326,21 @@ def main():
                 ),
                 color=status_color,
             )
+            metrics.add_stage_ms("render_overlay", (time.perf_counter() - t_render) * 1000.0)
 
-        if writer is not None:
+        if write_now:
+            t_writer = time.perf_counter()
             writer.write(vis)
+            metrics.add_stage_ms("writer", (time.perf_counter() - t_writer) * 1000.0)
 
         if can_show:
             if render_now:
+                t_imshow = time.perf_counter()
                 cv2.imshow("jetson-yolo", vis)
+                metrics.add_stage_ms("imshow", (time.perf_counter() - t_imshow) * 1000.0)
+            t_wait = time.perf_counter()
             key = cv2.waitKey(1) & 0xFF
+            metrics.add_stage_ms("waitkey", (time.perf_counter() - t_wait) * 1000.0)
             if key in (27, ord("q")):
                 break
 
@@ -317,6 +390,9 @@ def main():
         "det_interval": args.det_interval,
         "track_interval": args.track_interval,
         "tracker": tracker_mode,
+        "video_skip": args.video_skip,
+        "video_codec": video_codec,
+        "stage_ms": snap.get("stage_ms", {}),
     }
 
     print("--- src.app runtime ---")
@@ -332,6 +408,16 @@ def main():
     )
     print("input_shape={}".format(report["input_shape"]))
     print("detection_frames={}/{}".format(report["det_frames"], report["frames"]))
+    if report["stage_ms"]:
+        sorted_stages = sorted(
+            report["stage_ms"].items(), key=lambda kv: kv[1].get("mean", 0.0), reverse=True
+        )
+        print("stage_top_ms={}".format(", ".join(
+            [
+                "{}:{:.2f}".format(name, stats.get("mean", 0.0))
+                for name, stats in sorted_stages[:5]
+            ]
+        )))
 
     if save_json_path:
         save_json_path.parent.mkdir(parents=True, exist_ok=True)

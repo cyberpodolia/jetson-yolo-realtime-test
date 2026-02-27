@@ -15,6 +15,8 @@ class RuntimeDefaults(object):
     max_det = 10
     det_interval = 1
     track_interval = 1
+    video_skip = 1
+    video_codec = "mp4v"
     tracker = "off"
 
 

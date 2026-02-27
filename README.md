@@ -2,16 +2,17 @@
 
 Real-time joystick detection on Jetson Nano 4GB (PS3 Eye camera), with TensorRT FP16 and tracking-by-detection.
 
-## What This Project Shows
+## Highlights
 
-- End-to-end deployment pipeline: YOLOv8 -> ONNX -> TensorRT engine on Jetson.
-- Realtime app with two modes:
-  - detector only (`--tracker off`)
-  - tracking-by-detection (`--tracker csrt`)
-- Practical runtime controls for FPS stability:
-  - `--det-interval` (how often to run detector)
-  - `--track-interval` (how often to update tracker)
-  - `--preview-skip` (how often to render GUI frame)
+- End-to-end deployment: YOLOv8 -> ONNX -> TensorRT engine on Jetson.
+- Realtime runtime with:
+  - detector-only mode (`--tracker off`)
+  - tracking-by-detection (`--tracker csrt` or host-safe `--tracker sort`)
+- Runtime tuning knobs:
+  - `--det-interval`
+  - `--track-interval`
+  - `--preview-skip`
+  - `--video-skip`
 
 ## Tracking-by-Detection
 
@@ -27,11 +28,12 @@ Recommended realtime preset:
 ```bash
 python3 -m src.app \
   --engine artifacts/joystick_fp16.engine \
-  --tracker csrt --det-interval 3 --track-interval 2 \
-  --overlay-alpha 0.15 --preview-skip 2
+  --tracker sort --det-interval 3 --track-interval 2 \
+  --overlay-alpha 0.15 --preview-skip 2 \
+  --video-skip 2 --video-codec mp4v
 ```
 
-## Training Screenshots
+## Screenshots
 
 Train batch sample:
 
@@ -41,23 +43,36 @@ Training metrics curve:
 
 ![Training Results](runs/detect/joystick_320_neg_v4/results.png)
 
-## Metrics Snapshot
+## Latest Benchmarks (Jetson Host)
 
-Current measured snapshot from `REPORT.md`:
+Source files are in `outputs/` (local artifacts copied from Jetson):
+- `prof_off_noviz.json`
+- `prof_sort_noviz.json`
+- `perf_vs1_mp4v.json`
+- `perf_vs2_mp4v.json`
 
-| Metric | Value |
-|---|---|
-| Realtime FPS (sample) | 20.185 |
-| Inference p50 | 26.390 ms |
-| Inference p95 | 26.745 ms |
-| `trtexec` throughput | 57.57 qps |
-| `trtexec` latency mean | 17.06 ms |
-| `trtexec` latency p99 | 34.65 ms |
-| RAM used (min/max/avg) | 1452 / 3616 / 1586 MB |
-| CPU average load mean | 7.5% |
-| GR3D average | 7.8% |
+| Mode | FPS | Infer p50 | Notes |
+|---|---:|---:|---|
+| `off`, no video | 22.04 | 20.58 ms | detector every frame |
+| `sort`, no video | 22.62 | 20.51 ms | `det=3`, `track=2` |
+| `sort`, video `mp4v`, `video-skip=1` | 16.30 | 15.79 ms | writer becomes bottleneck |
+| `sort`, video `mp4v`, `video-skip=2` | 28.73 | 15.73 ms | highest throughput in tests |
 
-Full details: `REPORT.md` and `run.txt`.
+Main bottleneck during recording: video writer (`stage_ms.writer`).
+
+## Demo Outputs
+
+Recorded runtime videos (local, not committed):
+- `outputs/host_sort.mp4`
+- `outputs/host_sort2.mp4`
+- `outputs/prof_sort_video.mp4`
+- `outputs/perf_vs1_mp4v.avi`
+- `outputs/perf_vs2_mp4v.avi`
+
+Metrics JSON for montage overlays:
+- `outputs/metrics_host_sort.json`
+- `outputs/perf_vs1_mp4v.json`
+- `outputs/perf_vs2_mp4v.json`
 
 ## Minimal Run Commands
 
@@ -73,12 +88,13 @@ Detector only:
 python3 -m src.app --engine artifacts/joystick_fp16.engine --tracker off
 ```
 
-Tracking-by-detection:
+Tracking-by-detection (host-safe):
 
 ```bash
 python3 -m src.app \
   --engine artifacts/joystick_fp16.engine \
-  --tracker csrt --det-interval 3 --track-interval 2
+  --tracker sort --det-interval 3 --track-interval 2 \
+  --preview-skip 2 --video-skip 2 --video-codec mp4v
 ```
 
 Benchmark matrix (`det_interval=1,3,5`):
@@ -99,3 +115,4 @@ Expected outputs:
 
 - `data/`, `outputs/`, `*.engine`, and helper/dev artifacts are ignored.
 - TensorRT `.engine` files are built on target Jetson and are not committed.
+- `CSRT` may be unavailable in host OpenCV builds; runtime falls back to `sort`.

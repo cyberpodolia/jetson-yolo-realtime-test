@@ -47,6 +47,16 @@ done
 ## 6) Optional host benchmark script (requires pycuda on host Python)
 bash scripts/bench.sh
 
+## 6.1) Host runtime fallback when CSRT is unavailable in host OpenCV
+python3 -m src.app \
+  --engine artifacts/joystick_fp16.engine \
+  --camera 0 --frames 300 --imgsz 320 \
+  --conf 0.6 --iou 0.7 --max-det 10 \
+  --tracker sort --det-interval 3 --track-interval 2 \
+  --video-skip 2 --video-codec mp4v \
+  --save-video outputs/host_sort.mp4 \
+  --save-json outputs/metrics_host_sort.json
+
 ## 7) Optional live preview in Docker
 # Required for GUI in container:
 export DISPLAY=:0

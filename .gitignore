@@ -6,6 +6,7 @@ src/scripts/
 scripts/dev/
 ROADMAP.md
 REPORT.md
+buffer.txt
 
 # Generated artifacts from dataset pipeline
 src/scripts/sessions/

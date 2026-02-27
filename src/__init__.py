@@ -8,5 +8,6 @@ __all__ = [
     "overlay",
     "postprocess",
     "tracker_csrt",
+    "tracker_sort",
     "trt_infer",
 ]

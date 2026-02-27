@@ -15,6 +15,7 @@ class RuntimeMetrics(object):
 
     def __init__(self):
         self._infer_latencies_ms = []  # type: List[float]
+        self._stage_latencies_ms = {}  # type: Dict[str, List[float]]
         self.frames = 0
         self.det_frames = 0
         self._t0 = None  # type: Optional[float]
@@ -26,6 +27,32 @@ class RuntimeMetrics(object):
     def add_latency_ms(self, value_ms):
         """Append one inference latency sample."""
         self._infer_latencies_ms.append(float(value_ms))
+
+    def add_stage_ms(self, stage_name, value_ms):
+        """Append one timing sample for a named pipeline stage."""
+        name = str(stage_name)
+        if name not in self._stage_latencies_ms:
+            self._stage_latencies_ms[name] = []
+        self._stage_latencies_ms[name].append(float(value_ms))
+
+    def _stage_snapshot(self):
+        out = {}
+        for stage_name, values in self._stage_latencies_ms.items():
+            if not values:
+                out[stage_name] = {
+                    "count": 0.0,
+                    "mean": 0.0,
+                    "p50": 0.0,
+                    "p95": 0.0,
+                }
+                continue
+            out[stage_name] = {
+                "count": float(len(values)),
+                "mean": round(sum(values) / len(values), 3),
+                "p50": round(statistics.median(values), 3),
+                "p95": round(_percentile(values, 0.95), 3),
+            }
+        return out
 
     def add_frame(self, infer_ms, has_detection):
         """Record one processed frame and detection presence."""
@@ -61,6 +88,7 @@ class RuntimeMetrics(object):
                 "infer_ms_p95": 0.0,
                 "det_frames": 0.0,
                 "det_ratio": 0.0,
+                "stage_ms": {},
             }
 
         if not self._infer_latencies_ms:
@@ -84,4 +112,5 @@ class RuntimeMetrics(object):
             "infer_ms_p95": infer_p95,
             "det_frames": float(self.det_frames),
             "det_ratio": round(self.det_frames / self.frames, 4),
+            "stage_ms": self._stage_snapshot(),
         }
