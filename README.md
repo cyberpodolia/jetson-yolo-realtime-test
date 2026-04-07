@@ -65,6 +65,21 @@ Source totals:
 
 The remaining `7,220` frames are negative / empty frames with no label file.
 
+## Synthetic Data Pipeline
+
+The Unreal/Houdini-side synthetic generator now lives in a separate repository:
+
+- [`cyberpodolia/Jetson-syntetic-Unreal-Houdini`](https://github.com/cyberpodolia/Jetson-syntetic-Unreal-Houdini)
+
+Short pipeline:
+
+1. `Jetson-syntetic-Unreal-Houdini` renders synthetic samples as `rgb/`, `mask/`, and `meta/` outputs.
+2. This repository consumes those rendered outputs and assembles mixed YOLO datasets together with real frames.
+3. The mixed dataset is trained here, producing runs such as `runs/detect/train4`.
+4. The selected checkpoint is exported to ONNX, converted to TensorRT on Jetson, and benchmarked in the realtime runtime.
+
+The split is intentional: Unreal/Houdini scene generation stays in the synthetic repo, while `jetson-yolo` stays focused on dataset packaging, training, export, deployment, and Jetson-side evaluation.
+
 ## Jetson Runtime Evidence
 
 The following benchmark data is intentionally preserved in the README. These are real Jetson host measurements from February 26-27, 2026, and they should not disappear just because `train4` is the next model to deploy.

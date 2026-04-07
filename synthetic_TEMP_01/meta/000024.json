@@ -1,0 +1,41 @@
+{
+  "id": 24,
+  "seed": 275282,
+  "global_seed": 904800,
+  "select_bg": 2,
+  "target_location": [
+    0.0,
+    0.0,
+    80.0
+  ],
+  "camera_location": [
+    97.03466796875,
+    -27.61865234375,
+    537.8515625
+  ],
+  "camera_rotation": [
+    -77.57333374023438,
+    164.1122283935547,
+    0.0
+  ],
+  "sequence_start_pose_index": 53,
+  "sequence_end_pose_index": 24,
+  "sequence_t": 0.1875,
+  "pose_index": null,
+  "pose_offset": [
+    97.03466796875,
+    -27.61865234375,
+    457.8515625
+  ],
+  "batch_frame_index": 3,
+  "batch_frames_total": 17,
+  "extra_batch_seeds": {},
+  "hdri": {
+    "file_path": "G:\\DB_OLD\\maps\\hdri panorams\\GSG - HDRI Collections for StudioPack 2.01\\HDRI Collections - Pro Studios\\Pro Studios\\HDRIs\\HDRI_STUDIO_vol2_041.hdr",
+    "asset_path": "/Game/assets/HDRI_Auto/HDRI_STUDIO_vol2_041_74e32afd.HDRI_STUDIO_vol2_041_74e32afd",
+    "imported_now": false,
+    "skylight_label": "SkyLight"
+  },
+  "rgb": "H:\\work\\jetson-yolo\\synthetic_TEMP_01\\rgb\\rgb_000024.png",
+  "mask": "H:\\work\\jetson-yolo\\synthetic_TEMP_01\\mask\\mask_000024.png"
+}
