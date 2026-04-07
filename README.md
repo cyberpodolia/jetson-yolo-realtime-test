@@ -1,6 +1,6 @@
-# Jetson YOLO Realtime (Joystick)
+# Jetson YOLO Realtime (Single object detection and tracking)
 
-Real-time joystick detection on Jetson Nano 4GB (PS3 Eye camera), with TensorRT FP16 and tracking-by-detection.
+Real-time object detection on Jetson Nano 4GB (PS3 Eye camera), with TensorRT FP16 and tracking-by-detection.
 
 This repository now has two important reference points:
 
