@@ -1,5 +1,6 @@
 # Python virtual environment
 .venv/
+.ruff_cache/
 
 # Local helper scripts and raw sessions
 src/scripts/
@@ -7,6 +8,11 @@ scripts/dev/
 ROADMAP.md
 REPORT.md
 buffer.txt
+
+# Local datasets and synthetic generation outputs
+/dataset*/
+/synthetic_out*/
+/sessions/
 
 # Generated artifacts from dataset pipeline
 src/scripts/sessions/
@@ -20,7 +26,19 @@ runs/*
 !runs/detect/
 runs/detect/*
 !runs/detect/joystick_320_neg_v4/
-!runs/detect/joystick_320_neg_v4/**
+# Keep only lightweight report assets from the reference training run.
+runs/detect/joystick_320_neg_v4/*
+!runs/detect/joystick_320_neg_v4/*.png
+!runs/detect/joystick_320_neg_v4/*.jpg
+!runs/detect/joystick_320_neg_v4/*.csv
+!runs/detect/joystick_320_neg_v4/*.yaml
+!runs/detect/train4/
+# Current synthetic-augmented reference run: keep plots/metrics only, not weights.
+runs/detect/train4/*
+!runs/detect/train4/*.png
+!runs/detect/train4/*.jpg
+!runs/detect/train4/*.csv
+!runs/detect/train4/*.yaml
 artifacts/*.plan
 yolo26n.pt
 yolov8n.pt

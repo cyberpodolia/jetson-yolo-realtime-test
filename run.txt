@@ -1,20 +1,32 @@
-# Jetson runbook (joystick realtime, TensorRT FP16)
+# Jetson deploy runbook (`train4` candidate)
 
-## 0) Performance mode on Jetson host
+## 0) Current checkpoint to deploy
+# local checkpoint: runs/detect/train4/weights/best.pt
+# dataset: dataset_v2/dataset.yaml
+# final val metrics: P=0.99552, R=0.98439, mAP50=0.99372, mAP50-95=0.95827
+
+## 1) Export ONNX on the training machine
+.venv\Scripts\yolo.exe export model=runs/detect/train4/weights/best.pt format=onnx imgsz=640 simplify=True
+Copy-Item runs\detect\train4\weights\best.onnx artifacts\joystick.onnx
+
+## 2) Sync refreshed repo/artifacts to Jetson
+# git pull on Jetson, or copy the refreshed `artifacts/joystick.onnx` into the repo there
+
+## 3) Performance mode on Jetson host
 sudo nvpmodel -m 0
 sudo jetson_clocks
 
-## 1) Verify ONNX exists
+## 4) Verify ONNX exists on Jetson
 ls -lh /home/kolins/jetson-yolo/artifacts/joystick.onnx
 
-## 2) Build TensorRT engine
+## 5) Build TensorRT engine
 cd /home/kolins/jetson-yolo
 bash scripts/build_engine.sh
 
-## 3) Quick TensorRT sanity (engine-only benchmark)
+## 6) Quick TensorRT sanity (engine-only benchmark)
 /usr/src/tensorrt/bin/trtexec --loadEngine=artifacts/joystick_fp16.engine --warmUp=1000 --duration=10 --streams=1
 
-## 4) Runtime via Docker (recommended)
+## 7) Runtime via Docker (recommended)
 sudo docker run --rm -it \
   --runtime nvidia --network host --ipc host \
   --device /dev/video0:/dev/video0 \
@@ -28,7 +40,7 @@ sudo docker run --rm -it \
     --tracker csrt --det-interval 3 --track-interval 2 \
     --save-json outputs/metrics_det3.json
 
-## 5) Benchmark matrix det_interval={1,3,5} in Docker
+## 8) Benchmark matrix det_interval={1,3,5} in Docker
 for N in 1 3 5; do
   sudo docker run --rm -it \
     --runtime nvidia --network host --ipc host \
@@ -44,10 +56,10 @@ for N in 1 3 5; do
       --save-json "outputs/metrics_det${N}.json"
 done
 
-## 6) Optional host benchmark script (requires pycuda on host Python)
+## 9) Optional host benchmark script (requires pycuda on host Python)
 bash scripts/bench.sh
 
-## 6.1) Host runtime fallback when CSRT is unavailable in host OpenCV
+## 9.1) Host runtime fallback when CSRT is unavailable in host OpenCV
 python3 -m src.app \
   --engine artifacts/joystick_fp16.engine \
   --camera 0 --frames 300 --imgsz 320 \
@@ -57,7 +69,7 @@ python3 -m src.app \
   --save-video outputs/host_sort.mp4 \
   --save-json outputs/metrics_host_sort.json
 
-## 7) Optional live preview in Docker
+## 10) Optional live preview in Docker
 # Required for GUI in container:
 export DISPLAY=:0
 xhost +si:localuser:root
@@ -83,7 +95,7 @@ sudo docker run --rm -it \
 # Optional: revoke temporary X permission after run
 xhost -si:localuser:root
 
-## 8) Captured artifacts
+## 11) Captured artifacts to refresh after deploy
 # outputs/tegrastats.log
 # outputs/metrics_det1.json
 # outputs/metrics_det3.json
