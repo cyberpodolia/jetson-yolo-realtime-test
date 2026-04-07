@@ -52,10 +52,6 @@ These images are included as representative validation snapshots from two differ
 
 Dataset structure overview:
 
-![Dataset Structure](dataset_v2_structure.svg)
-
-Split and source distribution:
-
 ![Dataset Distribution](docs/dataset_distribution.svg)
 
 Source totals:
