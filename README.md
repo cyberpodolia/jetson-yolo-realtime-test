@@ -39,7 +39,7 @@ Representative batches:
 
 | Train batch | Validation prediction |
 |---|---|
-| ![Train4 Batch](runs/detect/train4/train_batch0.jpg) | ![Train4 Val Pred](runs/detect/train4/val_batch0_pred.jpg) |
+| ![Train4 Batch](runs/detect/train4/train_batch2.jpg) | ![Train4 Val Pred](runs/detect/train4/val_batch0_pred.jpg) |
 
 ## Validation Snapshots: Before / After Synthetic
 
