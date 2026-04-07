@@ -29,12 +29,7 @@ Comparison below is directional only. `joystick_320_neg_v4` used `data/dataset.y
 
 | Metrics curve | Normalized confusion matrix |
 |---|---|
-| ![Train4 Results](runs/detect/train4/results.png) | ![Train4 Confusion](runs/detect/train4/confusion_matrix_normalized.png) |
-
-| F1 curve | Label overview |
-|---|---|
-| ![Train4 F1](runs/detect/train4/BoxF1_curve.png) | ![Train4 Labels](runs/detect/train4/labels.jpg) |
-
+| ![Train4 Results](runs/detect/train4/results.png) |
 Representative batches:
 
 | Train batch | Validation prediction |
