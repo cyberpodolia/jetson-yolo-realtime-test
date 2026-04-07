@@ -27,8 +27,8 @@ Comparison below is directional only. `joystick_320_neg_v4` used `data/dataset.y
 
 ## Latest Training Visuals (`train4`)
 
-| Metrics curve | Normalized confusion matrix |
-|---|---|
+| Metrics curve | 
+|---|
 | ![Train4 Results](runs/detect/train4/results.png) |
 Representative batches:
 
