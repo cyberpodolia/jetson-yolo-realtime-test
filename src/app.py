@@ -26,6 +26,12 @@ def parse_args():
         help="Path to TensorRT .engine model.",
     )
     parser.add_argument("--camera", type=int, default=DEFAULTS.camera, help="Camera index (/dev/videoX).")
+    parser.add_argument(
+        "--video",
+        type=Path,
+        default=None,
+        help="Optional prerecorded video path. When set, camera capture is disabled.",
+    )
     parser.add_argument("--frames", type=int, default=DEFAULTS.frames, help="Number of frames to process.")
     parser.add_argument("--imgsz", type=int, default=DEFAULTS.imgsz, help="Inference image size target.")
     parser.add_argument("--conf", type=float, default=DEFAULTS.conf, help="Confidence threshold.")
@@ -111,6 +117,7 @@ def main():
     args = parse_args()
     repo_root = Path(__file__).resolve().parents[1]
     engine_path = resolve_path(repo_root, args.engine)
+    video_path = resolve_path(repo_root, args.video) if args.video else None
     save_json_path = resolve_path(repo_root, args.save_json) if args.save_json else None
     save_video_path = resolve_path(repo_root, args.save_video) if args.save_video else None
 
@@ -129,9 +136,10 @@ def main():
     if args.dry_run:
         print(
             "dry_run_ok "
-            "engine={} camera={} imgsz={} det_interval={} track_interval={} tracker={} overlay_alpha={} preview_skip={} video_skip={} video_codec={}".format(
+            "engine={} camera={} video={} imgsz={} det_interval={} track_interval={} tracker={} overlay_alpha={} preview_skip={} video_skip={} video_codec={}".format(
                 engine_path,
                 args.camera,
+                video_path,
                 args.imgsz,
                 args.det_interval,
                 args.track_interval,
@@ -148,6 +156,8 @@ def main():
         raise FileNotFoundError("TensorRT engine not found: {}".format(engine_path))
     if engine_path.suffix.lower() != ".engine":
         raise ValueError("Runtime expects a TensorRT .engine file")
+    if video_path is not None and not video_path.exists():
+        raise FileNotFoundError("Input video not found: {}".format(video_path))
 
     import cv2
 
@@ -166,18 +176,34 @@ def main():
         raise RuntimeError("Expected NCHW input shape, got: {}".format(in_shape))
     _, _, in_h, in_w = in_shape
 
-    cap = open_camera(
-        camera=args.camera,
-        width=args.width,
-        height=args.height,
-        fps=args.fps,
-        use_gstreamer=args.use_gst or bool(args.gst),
-        gst_pipeline=args.gst or None,
-    )
-    if not cap.isOpened():
-        raise RuntimeError("Cannot open camera index {}".format(args.camera))
+    if video_path is not None:
+        cap = cv2.VideoCapture(str(video_path))
+        if not cap.isOpened():
+            raise RuntimeError("Cannot open input video {}".format(video_path))
+    else:
+        cap = open_camera(
+            camera=args.camera,
+            width=args.width,
+            height=args.height,
+            fps=args.fps,
+            use_gstreamer=args.use_gst or bool(args.gst),
+            gst_pipeline=args.gst or None,
+        )
+        if not cap.isOpened():
+            raise RuntimeError("Cannot open camera index {}".format(args.camera))
 
-    writer = _make_writer(cv2, save_video_path, args.width, args.height, args.fps, video_codec)
+    source_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)) or args.width
+    source_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)) or args.height
+    source_fps = float(cap.get(cv2.CAP_PROP_FPS)) or float(args.fps)
+
+    writer = _make_writer(
+        cv2,
+        save_video_path,
+        source_width,
+        source_height,
+        int(max(source_fps, 1.0)),
+        video_codec,
+    )
     if save_video_path is not None and writer is None:
         print(
             "WARN: cannot open video writer with codec '{}'; disabling --save-video.".format(
@@ -197,6 +223,8 @@ def main():
         if not ok:
             continue
         inferencer.infer(frame)
+    if video_path is not None:
+        cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
 
     tracker_mode = args.tracker
     tracker = None
@@ -238,6 +266,8 @@ def main():
         ok, frame = cap.read()
         metrics.add_stage_ms("capture_read", (time.perf_counter() - t_cap) * 1000.0)
         if not ok:
+            if video_path is not None:
+                break
             continue
         frame_id += 1
 
@@ -364,11 +394,14 @@ def main():
 
     snap = metrics.snapshot()
     if int(snap["frames"]) == 0:
-        raise RuntimeError("Camera opened but no frames were processed")
+        source_name = str(video_path) if video_path is not None else "camera"
+        raise RuntimeError("{} opened but no frames were processed".format(source_name))
 
     report = {
         "timestamp": datetime.utcnow().isoformat() + "Z",
         "model": str(engine_path),
+        "video": str(video_path) if video_path is not None else None,
+        "source": "video" if video_path is not None else "camera",
         "camera": args.camera,
         "frames": int(snap["frames"]),
         "requested_frames": args.frames,
@@ -384,9 +417,10 @@ def main():
         "imgsz": args.imgsz,
         "conf": args.conf,
         "iou": args.iou,
-        "width": args.width,
-        "height": args.height,
-        "camera_fps_requested": args.fps,
+        "width": source_width,
+        "height": source_height,
+        "camera_fps_requested": args.fps if video_path is None else None,
+        "source_fps": round(source_fps, 3),
         "det_interval": args.det_interval,
         "track_interval": args.track_interval,
         "tracker": tracker_mode,

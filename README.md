@@ -7,14 +7,15 @@ This repository now has two important reference points:
 - `runs/detect/joystick_320_neg_v4`: earlier baseline run trained on the older `data/dataset.yaml`
 - `runs/detect/train4`: current synthetic-augmented deployment candidate trained on `dataset_v2/dataset.yaml`
 
-The key caveat is that these runs are not apples-to-apples: they use different datasets, different image sizes, and different training schedules. The README keeps both because the old run is still the only one with published Jetson runtime evidence, while `train4` is the current candidate to export and redeploy.
+The key caveat is that these runs are not apples-to-apples: they use different datasets, different image sizes, and different training schedules. The README keeps both because the old run remains the baseline reference, while `train4` now has fresh Jetson prerecorded A/B evidence and is the active deployment target.
 
 ## Current Status
 
 - Current deployment candidate: `runs/detect/train4`
+- Current Jetson A/B export: `artifacts/train4_320_fp16.engine`
 - Current dataset: `dataset_v2/dataset.yaml`
-- Next deploy step: `train4/best.pt -> ONNX -> TensorRT -> fresh Jetson benchmark`
-- Existing Jetson runtime evidence: captured on February 26-27, 2026, before the `train4` refresh
+- Fresh Jetson fast-path evidence: captured on April 7-8, 2026 on prerecorded clips
+- Next deploy step: repeat the same A/B on live camera and record a new final demo clip
 
 ## Training Comparison
 
@@ -82,7 +83,12 @@ The split is intentional: Unreal/Houdini scene generation stays in the synthetic
 
 ## Jetson Runtime Evidence
 
-The following benchmark data is intentionally preserved in the README. These are real Jetson host measurements from February 26-27, 2026, and they should not disappear just because `train4` is the next model to deploy.
+The README now keeps two runtime evidence sets:
+
+- historical baseline camera/host measurements from February 26-27, 2026
+- fresh post-`train4` prerecorded A/B measurements from April 7-8, 2026
+
+### Historical Baseline Camera Benchmarks (February 26-27, 2026)
 
 Source files in local `outputs/`:
 
@@ -93,7 +99,7 @@ Source files in local `outputs/`:
 - `trtexec_live.txt`
 - `tegrastats_live.log`
 
-### Latest Benchmarks (Jetson Host)
+Jetson host results:
 
 | Mode | FPS | Infer p50 | Notes |
 |---|---:|---:|---|
@@ -114,49 +120,83 @@ Tegrastats summary from `outputs/tegrastats_live.log`:
 - GR3D freq min/max/avg: `0 / 99 / 7.8 %`
 - CPU average load min/max/mean: `0.5 / 74.8 / 7.5 %`
 
-These runtime metrics predate the `train4` export. After the next deploy, this section should be updated with a fresh `train4` engine and a new camera demo.
+### Fresh Fast-Path A/B on Prerecorded Clips (April 7-8, 2026)
 
-## Jetson Demo Assets
+For a fair Jetson comparison, the `train4` checkpoint was exported at `320` and built as `artifacts/train4_320_fp16.engine`. The older baseline was rebuilt natively on the same Jetson as `artifacts/joystick_320_fp16_native.engine`. Both were evaluated through the high-throughput runtime path in `src.app` with:
 
-Current README demo assets are taken from the existing Jetson baseline runtime capture, not yet from the refreshed `train4` deploy.
+- `tracker=sort`
+- `det-interval=3`
+- `track-interval=2`
+- `video-skip=2`
+- `video-codec=mp4v`
 
-- [Jetson sort demo clip](docs/jetson_sort_demo.mp4)
+| Clip | Baseline FPS | `train4` FPS | Delta FPS | Baseline infer p50 | `train4` infer p50 | Baseline det ratio | `train4` det ratio |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| `session_0002_30s` | 32.96 | 34.99 | +2.03 | 13.70 ms | 13.23 ms | 0.9011 | 0.9989 |
+| `session_0005_60s_30s` | 24.78 | 35.74 | +10.96 | 13.75 ms | 13.27 ms | 0.3289 | 1.0000 |
 
-| Detector-only frame | Tracking-by-detection frame |
+Key takeaway:
+
+- On the easier `session_0002` clip, `train4` still wins on both throughput and detection coverage.
+- On `session_0005`, the older baseline loses track often enough that `train4` ends up much faster because it needs fewer detector reacquires.
+
+Artifacts in `docs/fastpath_compare/`:
+
+- `session_0002_30s`: [baseline mp4](docs/fastpath_compare/baseline_sort_20260408_session0002.mp4), [train4 mp4](docs/fastpath_compare/candidate_sort_20260408_session0002.mp4), [side-by-side frame](docs/fastpath_compare/compare_sort_20260408_session0002_7s_side_by_side.png)
+- `session_0005_60s_30s`: [baseline mp4](docs/fastpath_compare/baseline_sort_20260407_session0005.mp4), [train4 mp4](docs/fastpath_compare/candidate_sort_20260407_session0005.mp4), [side-by-side frame](docs/fastpath_compare/compare_sort_20260407_session0005_7s_side_by_side.png)
+
+| `session_0002_30s` | `session_0005_60s_30s` |
 |---|---|
-| ![Detector Only](docs/jetson_det_only_frame.png) | ![Sort Demo](docs/jetson_sort_demo_frame.png) |
+| ![Session 0002 A/B](docs/fastpath_compare/compare_sort_20260408_session0002_7s_side_by_side.png) | ![Session 0005 A/B](docs/fastpath_compare/compare_sort_20260407_session0005_7s_side_by_side.png) |
 
 ## Deployment Path
 
-1. Export ONNX from the local `train4` checkpoint on the training machine:
+1. Export ONNX from the local `train4` checkpoint on the training machine.
+For a fair Jetson A/B against the old `320` baseline, export `train4` at `320` too:
 
 ```powershell
-.venv\Scripts\yolo.exe export model=runs/detect/train4/weights/best.pt format=onnx imgsz=640 simplify=True
-Copy-Item runs\detect\train4\weights\best.onnx artifacts\joystick.onnx
+.venv\Scripts\yolo.exe export model=runs/detect/train4/weights/best.pt format=onnx imgsz=320 simplify=True
+Copy-Item runs\detect\train4\weights\best.onnx artifacts\train4_320.onnx
 ```
 
-2. Build the TensorRT engine on Jetson:
+2. Build both TensorRT engines on Jetson:
 
 ```bash
-bash scripts/build_engine.sh
+bash scripts/build_engine.sh artifacts/train4_320.onnx artifacts/train4_320_fp16.engine
+bash scripts/build_engine.sh artifacts/joystick.onnx artifacts/joystick_320_fp16_native.engine
 ```
 
-3. Run realtime inference:
+3. Run the high-FPS prerecorded benchmark path:
 
 ```bash
 python3 -m src.app \
-  --engine artifacts/joystick_fp16.engine \
+  --engine artifacts/train4_320_fp16.engine \
+  --video docs/test_inputs/session_0002_30s.mp4 \
+  --frames 900 \
+  --tracker sort --det-interval 3 --track-interval 2 \
+  --overlay-alpha 0.15 \
+  --video-skip 2 --video-codec mp4v \
+  --save-video outputs/train4_sort.mp4 \
+  --save-json outputs/train4_sort.json
+```
+
+4. Run live camera inference when you want the final on-device demo:
+
+```bash
+python3 -m src.app \
+  --engine artifacts/train4_320_fp16.engine \
+  --camera 0 --frames 300 \
   --tracker sort --det-interval 3 --track-interval 2 \
   --overlay-alpha 0.15 --preview-skip 2 \
   --video-skip 2 --video-codec mp4v
 ```
 
-4. Refresh:
+5. Refresh:
 
 - Jetson benchmark JSON files
 - tegrastats summary
-- post-`train4` demo video
-- README screenshots from the new runtime
+- `docs/fastpath_compare/` mp4/png assets
+- final live demo video
 
 For the full Jetson deploy runbook, see `run.txt`.
 

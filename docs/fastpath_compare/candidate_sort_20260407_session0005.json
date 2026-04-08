@@ -1,0 +1,85 @@
+{
+  "timestamp": "2026-04-08T09:06:17.632885Z",
+  "model": "/home/kolins/jetson-yolo/artifacts/train4_320_fp16.engine",
+  "video": "/home/kolins/jetson-yolo/docs/test_inputs/session_0005_60s_30s.mp4",
+  "source": "video",
+  "camera": 0,
+  "frames": 900,
+  "requested_frames": 900,
+  "fps": 35.737,
+  "total_sec": 25.184,
+  "infer_ms_mean": 13.317,
+  "infer_ms_p50": 13.265,
+  "infer_ms_p95": 13.579,
+  "infer_samples": 301,
+  "det_frames": 900,
+  "det_ratio": 1.0,
+  "input_shape": [
+    1,
+    3,
+    320,
+    320
+  ],
+  "imgsz": 320,
+  "conf": 0.6,
+  "iou": 0.7,
+  "width": 640,
+  "height": 480,
+  "camera_fps_requested": null,
+  "source_fps": 30.0,
+  "det_interval": 3,
+  "track_interval": 2,
+  "tracker": "sort",
+  "video_skip": 2,
+  "video_codec": "mp4v",
+  "stage_ms": {
+    "capture_read": {
+      "count": 900.0,
+      "mean": 2.217,
+      "p50": 2.193,
+      "p95": 2.396
+    },
+    "infer_total": {
+      "count": 301.0,
+      "mean": 19.104,
+      "p50": 18.937,
+      "p95": 19.804
+    },
+    "infer_reported": {
+      "count": 301.0,
+      "mean": 13.317,
+      "p50": 13.265,
+      "p95": 13.579
+    },
+    "decode_nms": {
+      "count": 301.0,
+      "mean": 17.0,
+      "p50": 16.822,
+      "p95": 17.523
+    },
+    "track_init": {
+      "count": 301.0,
+      "mean": 0.511,
+      "p50": 0.368,
+      "p95": 0.438
+    },
+    "track_update": {
+      "count": 300.0,
+      "mean": 0.198,
+      "p50": 0.165,
+      "p95": 0.21
+    },
+    "render_overlay": {
+      "count": 450.0,
+      "mean": 2.629,
+      "p50": 2.513,
+      "p95": 3.097
+    },
+    "writer": {
+      "count": 450.0,
+      "mean": 23.909,
+      "p50": 24.337,
+      "p95": 27.421
+    }
+  }
+}

@@ -11,6 +11,7 @@ Make the repository portfolio-ready for Jetson Nano joystick realtime detection:
 
 - Training run: `runs/detect/train4`
 - Dataset: `dataset_v2/dataset.yaml`
+- Fair Jetson A/B export: `artifacts/train4_320_fp16.engine`
 - Base model: `yolov8n.pt`
 - Training setup: `epochs=80`, `imgsz=640`, `batch=16`, `lr0=0.001`, `mixup=0.1`
 - Final validation metrics at epoch 80:
@@ -34,11 +35,15 @@ Make the repository portfolio-ready for Jetson Nano joystick realtime detection:
   - `--tracker csrt|off`
   - `--det-interval N`
   - detector re-acquire when tracker update fails
+- Added prerecorded benchmark input path in `src.app`:
+  - `--video path/to/input.mp4`
+  - same TensorRT + tracker runtime can now be replayed on saved Jetson sessions
 - Added reproducible Jetson scripts:
   - `scripts/build_engine.sh`
   - `scripts/tegrastats_log.sh`
   - `scripts/bench.sh`
 - Promoted `runs/detect/train4` to the current synthetic-augmented reference run in docs.
+- Added fresh Jetson fast-path A/B evidence for `train4` vs baseline under `docs/fastpath_compare/`.
 - Tightened `.gitignore` to keep datasets, synthetic renders, sessions, and training weights out of Git while allowing lightweight `train4` artifacts.
 - Updated docs:
   - `README.md`
@@ -51,24 +56,34 @@ Make the repository portfolio-ready for Jetson Nano joystick realtime detection:
 - AC1 (modular `src/app.py` + `--help` smoke): PASS
 - AC2 (`scripts/build_engine.sh` builds engine from ONNX): PASS
 - AC3 (`scripts/bench.sh` produces tegrastats + metrics for det_interval 1/3/5): FAIL
-  - Reason: `train4` has not yet been exported to ONNX and rerun on target Jetson through the benchmark matrix.
+  - Reason: `train4` has already been exported and benchmarked on Jetson, but not yet through one fresh full `scripts/bench.sh` det_interval `{1,3,5}` matrix artifact set.
 - AC4 (CSRT tracking-by-detection with reacquire): PASS
 - AC5 (no dataset/engine/outputs committed): PASS
   - Datasets, synthetic outputs, sessions, and training weights remain ignored; only lightweight reference artifacts are intended for Git.
 
-## Jetson runtime evidence (previous deploy)
+## Jetson runtime evidence
 
 Source files:
 - `outputs/realtime_test.json` (copied from Jetson)
 - `outputs/trtexec_live.txt` (copied from Jetson)
 - `outputs/tegrastats_live.log` (copied from Jetson)
+- `docs/fastpath_compare/*.json`
+- `docs/fastpath_compare/*.mp4`
 
-Realtime camera sample (`outputs/realtime_test.json`):
+Historical camera sample (`outputs/realtime_test.json`):
 - frames: 30 / 30
 - FPS: 20.185
 - infer p50: 26.390 ms
 - infer p95: 26.745 ms
 - camera mode: 640x480 @ requested 30 FPS
+
+Fresh prerecorded fast-path A/B (`src.app --video`, `sort`, `det=3`, `track=2`, `video-skip=2`):
+- `session_0002_30s`
+  - baseline: `32.959 FPS`, `infer p50 13.700 ms`, `det_ratio 0.9011`
+  - `train4`: `34.985 FPS`, `infer p50 13.229 ms`, `det_ratio 0.9989`
+- `session_0005_60s_30s`
+  - baseline: `24.777 FPS`, `infer p50 13.745 ms`, `det_ratio 0.3289`
+  - `train4`: `35.737 FPS`, `infer p50 13.265 ms`, `det_ratio 1.0000`
 
 Engine-only sample (`outputs/trtexec_live.txt`):
 - Throughput: 57.57 qps
@@ -80,8 +95,6 @@ Tegrastats summary (`outputs/tegrastats_live.log`, parsed):
 - RAM used min/max/avg: 1452 / 3616 / 1586 MB (total 3956 MB)
 - GR3D freq min/max/avg: 0 / 99 / 7.8 %
 - CPU average load min/max/mean: 0.5 / 74.8 / 7.5 %
-
-These runtime numbers were collected before the `train4` refresh. They remain useful as baseline Jetson evidence, but they should be regenerated after exporting `runs/detect/train4/weights/best.pt` to ONNX and rebuilding the TensorRT engine.
 
 ## Gates
 - format: PASS (`python -m ruff format src`)
@@ -100,14 +113,14 @@ These runtime numbers were collected before the `train4` refresh. They remain us
 - CI URL (optional): n/a
 
 ## Risks / debt
-- `artifacts/joystick.onnx` should be refreshed from `runs/detect/train4/weights/best.pt` before the next Jetson deploy.
-- Need one real Jetson benchmark matrix run via `scripts/bench.sh` to complete AC3 and report det_interval 1/3/5 in one consistent artifact set for `train4`.
+- Need one fresh Jetson benchmark matrix run via `scripts/bench.sh` to complete AC3 and report det_interval 1/3/5 in one consistent artifact set for `train4`.
+- Need one live-camera `train4` demo capture to complement the prerecorded fast-path comparisons.
 - `src/scripts/` still contains local raw media folders from earlier sessions (ignored by git, but noisy).
 - `steps.log` and `gates.json` should be written under KB run folder for full protocol evidence compliance.
 
 ## Next
-- Export `runs/detect/train4/weights/best.pt` to ONNX and refresh `artifacts/joystick.onnx`.
+- Run the live-camera `train4` demo path on Jetson and record the final showcase clip.
 - Run on Jetson:
-  - `bash scripts/build_engine.sh`
+  - `bash scripts/build_engine.sh artifacts/train4_320.onnx artifacts/train4_320_fp16.engine`
   - `bash scripts/bench.sh`
-- Update `README.md` and `REPORT.md` with refreshed Jetson numbers after the `train4` deploy.
+- Keep `README.md` and `REPORT.md` aligned with both live and prerecorded Jetson evidence.

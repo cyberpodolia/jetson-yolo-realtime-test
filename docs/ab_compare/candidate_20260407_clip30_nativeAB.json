@@ -1,0 +1,54 @@
+{
+  "timestamp": "2026-04-07T16:18:43.849011Z",
+  "label": "candidate",
+  "video": "/home/kolins/jetson-yolo/docs/test_inputs/session_0002_30s.mp4",
+  "model": "/home/kolins/jetson-yolo/artifacts/train4_320_fp16.engine",
+  "frames": 900,
+  "fps": 16.423,
+  "total_sec": 54.8,
+  "infer_ms_mean": 13.228,
+  "infer_ms_p50": 13.196,
+  "infer_ms_p95": 13.431,
+  "infer_samples": 900,
+  "det_frames": 898,
+  "det_ratio": 0.9978,
+  "total_detections": 898,
+  "avg_detections_per_frame": 0.9978,
+  "best_score": 0.977,
+  "input_shape": [
+    1,
+    3,
+    320,
+    320
+  ],
+  "conf": 0.6,
+  "iou": 0.7,
+  "max_det": 10,
+  "stage_ms": {
+    "capture_read": {
+      "count": 901.0,
+      "mean": 2.142,
+      "p50": 2.135,
+      "p95": 2.2
+    },
+    "infer_total": {
+      "count": 900.0,
+      "mean": 18.829,
+      "p50": 18.777,
+      "p95": 19.306
+    },
+    "infer_reported": {
+      "count": 900.0,
+      "mean": 13.228,
+      "p50": 13.196,
+      "p95": 13.431
+    },
+    "decode_nms": {
+      "count": 900.0,
+      "mean": 17.354,
+      "p50": 17.325,
+      "p95": 18.056
+    }
+  },
+  "rendered_video": "/home/kolins/jetson-yolo/outputs/video_compare_20260407_clip30_nativeAB/candidate.mp4"
+}

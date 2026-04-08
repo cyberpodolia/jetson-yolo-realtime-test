@@ -1,0 +1,85 @@
+{
+  "timestamp": "2026-04-08T09:05:39.089728Z",
+  "model": "/home/kolins/jetson-yolo/artifacts/joystick_320_fp16_native.engine",
+  "video": "/home/kolins/jetson-yolo/docs/test_inputs/session_0005_60s_30s.mp4",
+  "source": "video",
+  "camera": 0,
+  "frames": 900,
+  "requested_frames": 900,
+  "fps": 24.777,
+  "total_sec": 36.324,
+  "infer_ms_mean": 13.793,
+  "infer_ms_p50": 13.745,
+  "infer_ms_p95": 14.039,
+  "infer_samples": 620,
+  "det_frames": 296,
+  "det_ratio": 0.3289,
+  "input_shape": [
+    1,
+    3,
+    320,
+    320
+  ],
+  "imgsz": 320,
+  "conf": 0.6,
+  "iou": 0.7,
+  "width": 640,
+  "height": 480,
+  "camera_fps_requested": null,
+  "source_fps": 30.0,
+  "det_interval": 3,
+  "track_interval": 2,
+  "tracker": "sort",
+  "video_skip": 2,
+  "video_codec": "mp4v",
+  "stage_ms": {
+    "capture_read": {
+      "count": 900.0,
+      "mean": 2.237,
+      "p50": 2.185,
+      "p95": 2.393
+    },
+    "infer_total": {
+      "count": 620.0,
+      "mean": 19.616,
+      "p50": 19.468,
+      "p95": 20.385
+    },
+    "infer_reported": {
+      "count": 620.0,
+      "mean": 13.793,
+      "p50": 13.745,
+      "p95": 14.039
+    },
+    "decode_nms": {
+      "count": 620.0,
+      "mean": 17.228,
+      "p50": 17.123,
+      "p95": 17.826
+    },
+    "render_overlay": {
+      "count": 450.0,
+      "mean": 1.545,
+      "p50": 1.08,
+      "p95": 2.857
+    },
+    "writer": {
+      "count": 450.0,
+      "mean": 23.3,
+      "p50": 23.435,
+      "p95": 27.377
+    },
+    "track_init": {
+      "count": 16.0,
+      "mean": 3.419,
+      "p50": 0.359,
+      "p95": 0.391
+    },
+    "track_update": {
+      "count": 142.0,
+      "mean": 0.17,
+      "p50": 0.166,
+      "p95": 0.19
+    }
+  }
+}
