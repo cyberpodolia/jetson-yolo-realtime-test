@@ -13,6 +13,8 @@ buffer.txt
 /dataset*/
 /synthetic_out*/
 /sessions/
+/docs/ab_compare/
+/docs/test_inputs/
 
 # Generated artifacts from dataset pipeline
 src/scripts/sessions/
@@ -22,6 +24,7 @@ preview/
 data/
 outputs/
 artifacts/*.engine
+artifacts/train4_*.onnx
 runs/*
 !runs/detect/
 runs/detect/*
@@ -39,6 +42,10 @@ runs/detect/train4/*
 !runs/detect/train4/*.jpg
 !runs/detect/train4/*.csv
 !runs/detect/train4/*.yaml
+!runs/detect/train4/weights/
+runs/detect/train4/weights/*
+!runs/detect/train4/weights/best.pt
+!runs/detect/train4/weights/best.onnx
 artifacts/*.plan
 yolo26n.pt
 yolov8n.pt

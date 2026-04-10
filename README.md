@@ -203,6 +203,6 @@ For the full Jetson deploy runbook, see `run.txt`.
 ## Notes
 
 - `dataset_v2/`, synthetic outputs, `data/`, `outputs/`, `*.engine`, and helper/dev artifacts are ignored.
-- `runs/detect/train4/weights/*.pt` remain local-only; Git keeps only lightweight plots and CSV/YAML metadata for the reference run.
+- `runs/detect/train4/weights/best.pt` and `best.onnx` are tracked as reference artifacts; `last.pt` remains local-only.
 - TensorRT `.engine` files are built on target Jetson and are not committed.
 - `CSRT` may be unavailable in host OpenCV builds; runtime falls back to `sort`.
