@@ -31,24 +31,6 @@ Comparison below is directional only. `joystick_320_neg_v4` used `data/dataset.y
 | Metrics curve | 
 |---|
 | ![Train4 Results](runs/detect/train4/results.png) |
-Representative batches:
-
-| Train batch | Validation prediction |
-|---|---|
-| ![Train4 Batch](runs/detect/train4/train_batch2.jpg) | ![Train4 Val Pred](runs/detect/train4/val_batch0_pred.jpg) |
-
-## Validation Snapshots: Before / After Synthetic
-
-These images are included as representative validation snapshots from two different training eras. They are useful for qualitative inspection, but they are not frame-aligned A/B pairs from the same exact validation set.
-
-| Baseline `joystick_320_neg_v4` | Current candidate `train4` |
-|---|---|
-| ![Baseline Val Pred](runs/detect/joystick_320_neg_v4/val_batch0_pred.jpg) | ![Train4 Val Pred](runs/detect/train4/val_batch0_pred.jpg) |
-
-| Baseline second snapshot | Current candidate second snapshot |
-|---|---|
-| ![Baseline Val Pred 2](runs/detect/joystick_320_neg_v4/val_batch1_pred.jpg) | ![Train4 Val Pred 2](runs/detect/train4/val_batch1_pred.jpg) |
-
 ## Dataset Composition (`dataset_v2`)
 
 Dataset structure overview:
@@ -140,14 +122,7 @@ Key takeaway:
 - On the easier `session_0002` clip, `train4` still wins on both throughput and detection coverage.
 - On `session_0005`, the older baseline loses track often enough that `train4` ends up much faster because it needs fewer detector reacquires.
 
-Artifacts in `docs/fastpath_compare/`:
-
-- `session_0002_30s`: [baseline mp4](docs/fastpath_compare/baseline_sort_20260408_session0002.mp4), [train4 mp4](docs/fastpath_compare/candidate_sort_20260408_session0002.mp4), [side-by-side frame](docs/fastpath_compare/compare_sort_20260408_session0002_7s_side_by_side.png)
-- `session_0005_60s_30s`: [baseline mp4](docs/fastpath_compare/baseline_sort_20260407_session0005.mp4), [train4 mp4](docs/fastpath_compare/candidate_sort_20260407_session0005.mp4), [side-by-side frame](docs/fastpath_compare/compare_sort_20260407_session0005_7s_side_by_side.png)
-
-| `session_0002_30s` | `session_0005_60s_30s` |
-|---|---|
-| ![Session 0002 A/B](docs/fastpath_compare/compare_sort_20260408_session0002_7s_side_by_side.png) | ![Session 0005 A/B](docs/fastpath_compare/compare_sort_20260407_session0005_7s_side_by_side.png) |
+Benchmark measurements are available as [JSON reports](docs/fastpath_compare/).
 
 ## Deployment Path
 
@@ -171,7 +146,7 @@ bash scripts/build_engine.sh artifacts/joystick.onnx artifacts/joystick_320_fp16
 ```bash
 python3 -m src.app \
   --engine artifacts/train4_320_fp16.engine \
-  --video docs/test_inputs/session_0002_30s.mp4 \
+  --video /path/to/your/clip.mp4 \
   --frames 900 \
   --tracker sort --det-interval 3 --track-interval 2 \
   --overlay-alpha 0.15 \

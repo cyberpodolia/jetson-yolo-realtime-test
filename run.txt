@@ -81,7 +81,7 @@ python3 -m src.app \
 ## 9.2) Prerecorded fast-path A/B on saved Jetson sessions
 python3 -m src.app \
   --engine artifacts/joystick_320_fp16_native.engine \
-  --video docs/test_inputs/session_0002_30s.mp4 \
+  --video /path/to/your/clip.mp4 \
   --frames 900 --imgsz 320 \
   --conf 0.6 --iou 0.7 --max-det 10 \
   --tracker sort --det-interval 3 --track-interval 2 \
@@ -92,7 +92,7 @@ python3 -m src.app \
 
 python3 -m src.app \
   --engine artifacts/train4_320_fp16.engine \
-  --video docs/test_inputs/session_0002_30s.mp4 \
+  --video /path/to/your/clip.mp4 \
   --frames 900 --imgsz 320 \
   --conf 0.6 --iou 0.7 --max-det 10 \
   --tracker sort --det-interval 3 --track-interval 2 \

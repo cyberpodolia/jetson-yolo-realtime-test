@@ -68,7 +68,6 @@ Source files:
 - `outputs/trtexec_live.txt` (copied from Jetson)
 - `outputs/tegrastats_live.log` (copied from Jetson)
 - `docs/fastpath_compare/*.json`
-- `docs/fastpath_compare/*.mp4`
 
 Historical camera sample (`outputs/realtime_test.json`):
 - frames: 30 / 30
